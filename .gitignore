@@ -1,0 +1,15 @@
+# backup
+*~
+*.bak
+
+# erlang
+*.beam
+erl_crash.dump
+.eunit/
+.rebar/
+deps/
+ebin/
+
+# ide
+.idea/
+*.iml

@@ -1,19 +1,21 @@
 .PHONY: compile
 
-rebar = .rebar
+rebar = ./rebar
 
 all: compile eunit
 
 compile:
-    @${rebar} co
+	@${rebar} co
+
+test: eunit
 
 eunit:
-    @${rebar} eunit
+	@${rebar} eunit
 
 clean:
-    @rm ebin/*
+	@rm ebin/*
 
 dist-clean:
-    @rm ebin/*
-    @rm -rf .rebar/
-    @rm -rf .eunit/
+	@rm ebin/*
+	@rm -rf .rebar/
+	@rm -rf .eunit/

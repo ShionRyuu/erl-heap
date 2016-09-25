@@ -2,7 +2,13 @@
 
 [![Build Status](https://secure.travis-ci.org/ShionRyuu/erl-heap.png?branch=master)](https://travis-ci.org/ShionRyuu/erl-heap)
 
-min/max heap implementation in Erlang.
+heap implementation in Erlang.
+
+## Test
+
+```bash
+$ for i in {1..5}; do ./rebar co eu 2>&1 | tee -a result.txt; done
+```
 
 ## Authors
 

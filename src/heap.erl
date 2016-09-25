@@ -38,7 +38,8 @@
     sort/1,
     top/1,
     pop/1,
-    cmp/3
+    cmp/3,
+    valid/1
 ]).
 
 -compile({no_auto_import, [size/1]}).
@@ -105,20 +106,28 @@ insert_(H, K, V) ->
 
 %% @doc delete element
 delete(H, K) ->
-    #{size := S, heap := L, keys := Ks, index := Ix} = H,
     case is_in(K, H) of
-        true when S =:= 1 ->
+        true ->
+            delete_(H, K);
+        _ ->
+            H
+    end.
+
+delete_(H, K) ->
+    #{size := S, heap := L, keys := Ks, index := Ix} = H,
+    I = dict:fetch(K, Ks),
+    if
+        S =:= 1 ->
             H#{size => 0, heap => dict:new(),
-                keys => dict:new(), rank => dict:new()};
-        true when S > 1 ->
-            I = dict:fetch(K, Ks),
+                keys => dict:new(), index => dict:new()};
+        I =:= S ->
+            erase_elem(H#{size => S - 1}, I, K);
+        true ->
             Il = S,
             Vl = dict:fetch(Il, L),
             Kl = dict:fetch(Il, Ix),
             NH = store_elem(erase_elem(H#{size => S - 1}, Il, K), I, Kl, Vl),
-            shift_down(NH, I, Kl, Vl);
-        _ ->
-            H
+            shift_down(NH, I, Kl, Vl)
     end.
 
 %% @doc top element
@@ -158,8 +167,8 @@ shift_down(H, I, K, V) ->
     #{heap := L, index := Ix} = H,
     case Ir =:= I of
         true ->
+            %% http://blog.csdn.net/cdnight/article/details/11650983
             shift_up(H, I, K, V);
-            % store_elem(H, I, K, V);
         _ ->
             Vr = dict:fetch(Ir, L),
             Kr = dict:fetch(Ir, Ix),
@@ -237,6 +246,52 @@ def_cmp(A, B) when A > B ->
 def_cmp(A, B) when A < B ->
     -1.
 
+%% @doc check whether heap is valid
+valid(H) ->
+    FunList = [
+        fun size_valid/1,
+        fun sort_valid/1
+    ],
+    valid(FunList, H).
+
+valid([], _H) ->
+    true;
+valid([Fun | T], H) ->
+    case Fun(H) of
+        true -> valid(T, H);
+        _ -> false
+    end.
+
+%% @doc check heap size
+size_valid(H) ->
+    #{heap := L, keys := Ks, index := Ix} = H,
+    size_valid(dict:size(L), dict:size(Ks), dict:size(Ix)).
+
+size_valid(S, S, S) -> true;
+size_valid(_, _, _) -> false.
+
+%% @doc check elements order
+sort_valid(H) ->
+    #{mode := M, cmp := C} = H,
+    L = sort(H),
+    sort_valid(L, M, C).
+
+sort_valid([], _M, _C) ->
+    true;
+sort_valid([{_K, E} | T], M, C) ->
+    sort_valid(T, E, M, C).
+
+sort_valid([], _E0, _M, _C) ->
+    true;
+sort_valid([{_K, E1} | T], E0, M, C) ->
+    case cmp(C, E0, E1) of
+        R when (M =:= min andalso R =:= -1) orelse
+            (M =:= max andalso R =:= 1) -> 
+            sort_valid(T, E1, M, C);
+        _ ->
+            false
+    end.
+
 %% -----------------------------------------------------------------------------
 %% Test
 %% -----------------------------------------------------------------------------
@@ -289,7 +344,7 @@ heap_insert_delete_test() ->
     H = heap:new(min),
     H1 = heap:insert(H, 1, 5),
     %% update
-    H2 = heap:insert(H, 1, 15), 
+    H2 = heap:insert(H, 1, 15),
     ?assertEqual(heap:size(H2), 1),
     H3 = heap:delete(H2, 12),
     ?assertEqual(H2, H3),

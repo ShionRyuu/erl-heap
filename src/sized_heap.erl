@@ -40,7 +40,8 @@
     to_list/1,
     sort/1,
     top/1,
-    pop/1
+    pop/1,
+    valid/1
 ]).
 
 -compile({no_auto_import, [size/1]}).
@@ -102,13 +103,13 @@ insert(H, K, V) ->
         heap:is_in(K, IH) of
         true ->
             H#{min_heap => heap:insert(IH, K, V),
-                max_heap := heap:insert(XH, K, V)};
+                max_heap => heap:insert(XH, K, V)};
         _ when M =:= min -> %% min
             {Kx, Vx} = heap:top(XH),
             case heap:cmp(XH, V, Vx) of
                 -1 ->
                     H#{min_heap => heap:insert(heap:delete(IH, Kx), K, V),
-                        max_heap := heap:insert(heap:delete(XH, Kx), K, V)};
+                        max_heap => heap:insert(heap:delete(XH, Kx), K, V)};
                 _ -> H
             end;
         _ -> %% max
@@ -116,7 +117,7 @@ insert(H, K, V) ->
             case heap:cmp(XH, V, Vi) of
                 1 ->
                     H#{min_heap => heap:insert(heap:delete(IH, Ki), K, V),
-                        max_heap := heap:insert(heap:delete(XH, Ki), K, V)};
+                        max_heap => heap:insert(heap:delete(XH, Ki), K, V)};
                 _ -> H
             end
     end.
@@ -124,7 +125,7 @@ insert(H, K, V) ->
 %% @doc delete element
 delete(H, K) ->
     #{min_heap := IH, max_heap := XH} = H,
-    H#{min_heap => heap:delete(IH, K), max_heap := heap:delete(XH, K)}.
+    H#{min_heap => heap:delete(IH, K), max_heap => heap:delete(XH, K)}.
 
 %% @doc
 to_list(H) ->
@@ -167,6 +168,11 @@ pop2(H) ->
             {K, _} = heap:top(XH),
             H#{min_heap => heap:delete(IH, K), max_heap => heap:pop(XH)}
     end.
+
+%% @doc heap is valid
+valid(H) ->
+    #{min_heap := IH, max_heap := XH} = H,
+    heap:valid(IH) andalso heap:valid(XH).
 
 %% -----------------------------------------------------------------------------
 %% Test
@@ -228,7 +234,7 @@ heap_insert_delete_test() ->
     H = sized_heap:new(min, Cap),
     H1 = sized_heap:insert(H, 1, 5),
     %% update
-    H2 = sized_heap:insert(H, 1, 15), 
+    H2 = sized_heap:insert(H, 1, 15),
     ?assertEqual(sized_heap:size(H2), 1),
     H3 = sized_heap:delete(H2, 12),
     ?assertEqual(H2, H3),
@@ -256,5 +262,48 @@ heap_mode_test() ->
     H13 = sized_heap:insert(H12, 3, 3),
     ?assertEqual(sized_heap:top(H13), {3, 3}),
     ok.
+
+random_test() ->
+    rand:seed(exs1024),
+    ?assertEqual([random_test(M) || M <- [min, max]], [ok, ok]),
+    ok.
+
+random_test(M) ->
+    C = rand(50, 100),
+    S = rand(1000, 10000),
+    H = sized_heap:new(M, C),
+    %% insert
+    L1 = generate_elements(S, 1, 10000, []),
+    H1 = insert_elements(H, L1),
+    T1 = get_top_list(M, L1, C), %% list [{Val, Key}]
+    S1 = [V || {_K, V} <- sized_heap:sort(H1)], %% heap [{Key, {Val, Key}}]
+    ?assertEqual(T1, S1),
+    ?assertEqual(sized_heap:valid(H1), true),
+    ok.
+
+generate_elements(0, _Min, _Max, Acc) ->
+    lists:reverse(Acc);
+generate_elements(S, Min, Max, Acc) ->
+    NewAcc = [{rand(Min, Max), S} | Acc],
+    generate_elements(S - 1, Min, Max, NewAcc).
+
+insert_elements(H, []) ->
+    H;
+insert_elements(H, [{V, K} | T]) ->
+    insert_elements(sized_heap:insert(H, K, {V, K}), T).
+
+get_top_list(min, L, C) ->
+    lists:sublist(lists:sort(L), 1, C);
+get_top_list(max, L, C) ->
+    lists:sublist(lists:reverse(lists:sort(L)), 1, C).
+
+rand(Same, Same) -> Same;
+rand(Min, Max) when Max < Min -> 0;
+rand(Min, Max) ->
+    M = Min - 1,
+    if
+        Max - M =< 0 -> 0;
+        true -> rand:uniform(Max - M) + M
+    end.
 
 -endif.

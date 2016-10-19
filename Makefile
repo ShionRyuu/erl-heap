@@ -7,6 +7,8 @@ all: compile eunit
 compile:
 	@${rebar} co
 
+test: eunit
+
 eunit:
 	@${rebar} eunit
 
